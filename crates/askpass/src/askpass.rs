@@ -379,3 +379,56 @@ fn generate_askpass_script(
         "#,
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_generate_askpass_script_with_parentheses_in_path() {
+        let shell_kind = ShellKind::PowerShell;
+        let askpass_program = PathBuf::from(r"C:\Users\test-IT(OS)-user\AppData\Local\zed.exe");
+        let askpass_socket =
+            PathBuf::from(r"C:\Users\test-IT(OS)-user\AppData\Local\Temp\zed-askpass\askpass.sock");
+
+        let script = generate_askpass_script(shell_kind, &askpass_program, &askpass_socket)
+            .expect("Failed to generate askpass script");
+
+        assert!(
+            !script.contains("& &"),
+            "Generated script contains invalid '& &' syntax:\n{}",
+            script
+        );
+
+        assert!(
+            script.contains("--askpass="),
+            "Generated script missing --askpass parameter"
+        );
+
+        assert!(
+            script.contains("$ErrorActionPreference"),
+            "Generated script missing ErrorActionPreference"
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_generate_askpass_script_normal_path() {
+        let shell_kind = ShellKind::PowerShell;
+        let askpass_program = PathBuf::from(r"C:\Program Files\Zed\zed.exe");
+        let askpass_socket =
+            PathBuf::from(r"C:\Users\user\AppData\Local\Temp\zed-askpass\askpass.sock");
+
+        let script = generate_askpass_script(shell_kind, &askpass_program, &askpass_socket)
+            .expect("Failed to generate askpass script");
+
+        assert!(
+            !script.contains("& &"),
+            "Generated script contains invalid '& &' syntax:\n{}",
+            script
+        );
+        assert!(script.contains("--askpass="));
+    }
+}
